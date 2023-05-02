@@ -1,18 +1,14 @@
 from pypylon import pylon
 import cv2
 import datetime
-import asyncio
+import time
 
 # 이미지 저장 비동기 함수
-async def save_image(frame): 
+def save_image(frame): 
+    time.sleep(2)
     filename = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S") + '.jpg'
     cv2.imwrite(filename, frame)
-    await asyncio.sleep(3)
     
-async def run_tasks(frame):
-    task1 = asyncio.create_task(save_image(frame))  
-    await task1  
-
 # 카메라 초기화
 camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
 camera.Open()
@@ -32,6 +28,9 @@ camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
 converter = pylon.ImageFormatConverter()
 converter.OutputPixelFormat = pylon.PixelType_BGR8packed
 
+#시작시간
+interval_time = 10
+last_run = 0
 # 화면에 영상 표시
 while camera.IsGrabbing():
     grabResult = camera.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
@@ -43,11 +42,14 @@ while camera.IsGrabbing():
         # 배경 제거
         fgmask = fgbg.apply(frame_resized)
         
+        # 현재 시간
+        current_time = time.time()
         # 객체 탐지
         contours, hierarchy = cv2.findContours(fgmask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         cnt = list(filter(lambda x: cv2.contourArea(x) > 500, contours))
-        if len(cnt):  
-            asyncio.run(run_tasks(frame))
+        if len(cnt) and (current_time - last_run >= interval_time):  
+            save_image(frame_resized)
+            last_run = current_time
             
         # 영상 표시
         cv2.imshow("Camera", frame_resized)

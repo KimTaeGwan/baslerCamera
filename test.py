@@ -4,10 +4,14 @@ import datetime
 import asyncio
 
 # 이미지 저장 비동기 함수
-async def save_image(frame):
-    await asyncio.sleep(2) 
+async def save_image(frame): 
     filename = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S") + '.jpg'
     cv2.imwrite(filename, frame)
+    await asyncio.sleep(3)
+    
+async def run_tasks(frame):
+    task1 = asyncio.create_task(save_image(frame))  
+    await task1  
 
 # 카메라 초기화
 camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
@@ -41,13 +45,10 @@ while camera.IsGrabbing():
         
         # 객체 탐지
         contours, hierarchy = cv2.findContours(fgmask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        for cnt in contours:
-            # 탐지된 객체가 일정 크기 이상이면 프레임 저장
-            if cv2.contourArea(cnt) > 500:
-                # 이미지 저장 비동기 함수 호출
-                asyncio.run(save_image(frame))
-                break
-        
+        cnt = list(filter(lambda x: cv2.contourArea(x) > 500, contours))
+        if len(cnt):  
+            asyncio.run(run_tasks(frame))
+            
         # 영상 표시
         cv2.imshow("Camera", frame_resized)
         
